@@ -7,7 +7,7 @@ import unittest
 
 
 def get_listings_from_search_results(html_file):
-    # step one 
+    # # step one 
     
     f_hand = open(html_file)
     soup = BeautifulSoup(f_hand, 'html.parser')
@@ -16,32 +16,34 @@ def get_listings_from_search_results(html_file):
     title_list = soup.find_all('div', class_="t1jojoys dir dir-ltr")
     price = soup.find_all('span', class_='_tyxjp1')
     list_id = soup.find_all('a', class_="ln2bl2p dir dir-ltr")
-    print(list_id)
+    #print(list_id)
 
     title = []
     for a in title_list:
         title.append(a.text)
-    print(title)
+    #print(title)
 
 
     price_list = []
     for b in price:
         x = b.text.lstrip('$')
-        price_list.append(x)
-    print(price_list)
+        price_list.append(int(x))
+    #print(price_list)
 
     id = []
     for c in list_id:
         x = c['target'].split('_')[1]
         id.append(x)
-    print(id)
+    #print(id)
 
     bnb = []
-    
     for h in range(len(title)):
         tup = (title[h], price_list[h],id[h])
         bnb.append(tup)
-    print(bnb)
+    #print(bnb)
+
+    return(bnb)
+
 
 
     
@@ -54,7 +56,7 @@ def get_listings_from_search_results(html_file):
      and a string of the listing id number
     in the format given below. Make sure to turn costs into ints.
 
-    The listing id is found in the url of a listing. For example, for
+    The listing id is found in the url of a listing. For exasmple, for
         https://www.airbnb.com/rooms/1944564
     the listing id is 1944564.
 .
@@ -68,6 +70,61 @@ def get_listings_from_search_results(html_file):
 
 
 def get_listing_information(listing_id):
+
+    files = "html_files/listing_"+ listing_id + ".html"
+    f_hand = open(files, "r")
+    #files_hand = f_hand.read()
+    soup = BeautifulSoup(f_hand, 'html.parser')
+    f_hand.close()
+    
+    #finding the policy number 
+    policy_num = soup.find('li', class_= 'f19phm7j dir dir-ltr')
+    policy_number = policy_num.find('span', class_='ll4r2nl dir dir-ltr').text
+    
+
+    if 'pending' in policy_number.lower():
+        policy_number = "Pending"
+    elif 'exempt' in policy_number.lower() or 'not needed' in policy_number.lower():
+        policy_number = "Exempt"
+    else: 
+        policy_number = policy_number 
+    #print(policy_number)
+    
+    
+    # the place type writing
+    tag = soup.find('div', class_='_cv5qq4')
+    sub_title = tag.find('h2', class_= '_14i3z6h').text
+    if 'private' in sub_title.lower():
+        sub_title = "Private Room"
+    elif 'shared' in sub_title.lower():
+        sub_title = "Shared Room"
+    else:
+        sub_title = "Entire Room"
+    #print(sub_title)
+
+
+    room_num = soup.find_all('li', class_="l7n4lsf dir dir-ltr")[1]
+    #print(room_num)
+
+    num_bed = room_num.find_all('span')[2].text.split(" ")[0]
+    if 'studio' in num_bed.lower():
+        num_bed = 1
+
+    #print(num_bed)
+    
+    return(policy_number, sub_title, int(num_bed))
+
+
+
+    # sub_title = heading.find()
+    # make a var to get the text of the span
+    # check if pending or exempt is in there and then return either else just return the current text
+
+    # find the policy_num, 
+    # creat a list for the policy numbers and then go through list using if elif and else statment
+
+
+
 
     
     """
@@ -97,6 +154,17 @@ def get_listing_information(listing_id):
 
 
 def get_detailed_listing_database(html_file):
+    file = get_listings_from_search_results(html_file)
+    list_info = []
+    for list in file:
+        listing_info = get_listing_information(list[2])
+        list_info.append(list + listing_info)
+    #print(list_info)
+    return(list_info)
+    
+
+    
+
     """
     Write a function that calls the above two functions in order to return
     the complete listing information using the functions you’ve created.
@@ -114,6 +182,17 @@ def get_detailed_listing_database(html_file):
 
 
 def write_csv(data, filename):
+    with open(filename, 'w', newline='') as f:
+        writer = (csv.writer)(f)
+
+        header = ['Listing Title', 'Cost', 'Listing ID', 'Policy Number', 'Place Type', 'Number of Bedrooms']
+        writer.writerow(header)
+        
+        rows = sorted(data, key = lambda x:x[1])
+        for line in rows:
+            writer.writerow(line)
+        
+
     """
     Write a function that takes in a list of tuples (called data, i.e. the
     one that is returned by get_detailed_listing_database()), sorts the tuples in
@@ -139,6 +218,21 @@ def write_csv(data, filename):
 
 
 def check_policy_numbers(data):
+    reg_1 = '20\d{2}-00\d{4}STR$'
+    reg_2 = 'STR-000\d{4}$'
+    result_list = []
+    
+    for check in data:
+       policy_n = check[3]
+       if 'Pending' == policy_n or 'Exempt' == policy_n:
+        continue
+       if len(re.findall(reg_1,policy_n))==0 and len(re.findall(reg_2,policy_n))==0:
+        result_list.append(policy_n)
+    return(result_list)
+
+
+
+
     """
     Write a function that takes in a list of tuples called data, (i.e. the one that is returned by
     get_detailed_listing_database()), and parses through the policy number of each, validating the
@@ -188,95 +282,99 @@ class TestCases(unittest.TestCase):
         # check that the variable you saved after calling the function is a list
         self.assertEqual(type(listings), list)
         # check that each item in the list is a tuple
+        #self.assertEqual(type(listings),tuple)
+        for a in listings:
+            self.assertEqual(type(a),tuple)
 
         # check that the first title, cost, and listing id tuple is correct (open the search results html and find it)
-
+        #self.assertEqual([0], 'Loft in Mission District, 210, 1944564')
         # check that the last title is correct (open the search results html and find it)
         pass
 
-#     def test_get_listing_information(self):
-#         html_list = ["1623609",
-#                      "1944564",
-#                      "1550913",
-#                      "4616596",
-#                      "6600081"]
-#         # call get_listing_information for i in html_list:
-#         listing_informations = [get_listing_information(id) for id in html_list]
-#         # check that the number of listing information is correct (5)
-#         self.assertEqual(len(listing_informations), 5)
-#         for listing_information in listing_informations:
-#             # check that each item in the list is a tuple
-#             self.assertEqual(type(listing_information), tuple)
-#             # check that each tuple has 3 elements
-#             self.assertEqual(len(listing_information), 3)
-#             # check that the first two elements in the tuple are string
-#             self.assertEqual(type(listing_information[0]), str)
-#             self.assertEqual(type(listing_information[1]), str)
-#             # check that the third element in the tuple is an int
-#             self.assertEqual(type(listing_information[2]), int)
-#         # check that the first listing in the html_list has policy number 'STR-0001541'
+    def test_get_listing_information(self):
+        html_list = ["1623609",
+                     "1944564",
+                     "1550913",
+                     "4616596",
+                     "6600081"]
+        # call get_listing_information for i in html_list:
+        listing_informations = [get_listing_information(id) for id in html_list]
+        # check that the number of listing information is correct (5)
+        self.assertEqual(len(listing_informations), 5)
+        for listing_information in listing_informations:
+            # check that each item in the list is a tuple
+            self.assertEqual(type(listing_information), tuple)
+            # check that each tuple has 3 elements
+            self.assertEqual(len(listing_information), 3)
+            # check that the first two elements in the tuple are string
+            self.assertEqual(type(listing_information[0]), str)
+            self.assertEqual(type(listing_information[1]), str)
+            # check that the third element in the tuple is an int
+            self.assertEqual(type(listing_information[2]), int)
+        # check that the first listing in the html_list has policy number 'STR-0001541'
 
-#         # check that the last listing in the html_list is a "Private Room"
 
-#         # check that the third listing has one bedroom
+        # check that the last listing in the html_list is a "Private Room"
 
-#         pass
-
-#     def test_get_detailed_listing_database(self):
-#         # call get_detailed_listing_database on "html_files/mission_district_search_results.html"
-#         # and save it to a variable
-#         detailed_database = get_detailed_listing_database("html_files/mission_district_search_results.html")
-#         # check that we have the right number of listings (20)
-#         self.assertEqual(len(detailed_database), 20)
-#         for item in detailed_database:
-#             # assert each item in the list of listings is a tuple
-#             self.assertEqual(type(item), tuple)
-#             # check that each tuple has a length of 6
-
-#         # check that the first tuple is made up of the following:
-#         # 'Loft in Mission District', 210, '1944564', '2022-004088STR', 'Entire Room', 1
-
-#         # check that the last tuple is made up of the following:
-#         # 'Guest suite in Mission District', 238, '32871760', 'STR-0004707', 'Entire Room', 1
+        # check that the third listing has one bedroom
 
 #         pass
 
-#     def test_write_csv(self):
-#         # call get_detailed_listing_database on "html_files/mission_district_search_results.html"
-#         # and save the result to a variable
-#         detailed_database = get_detailed_listing_database("html_files/mission_district_search_results.html")
-#         # call write csv on the variable you saved
-#         write_csv(detailed_database, "test.csv")
-#         # read in the csv that you wrote
-#         csv_lines = []
-#         with open(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'test.csv'), 'r') as f:
-#             csv_reader = csv.reader(f)
-#             for i in csv_reader:
-#                 csv_lines.append(i)
-#         # check that there are 21 lines in the csv
-#         self.assertEqual(len(csv_lines), 21)
-#         # check that the header row is correct
+    def test_get_detailed_listing_database(self):
+        # call get_detailed_listing_database on "html_files/mission_district_search_results.html"
+        # and save it to a variable
+        detailed_database = get_detailed_listing_database("html_files/mission_district_search_results.html")
+        # check that we have the right number of listings (20)
+        self.assertEqual(len(detailed_database), 20)
+        for item in detailed_database:
+            # assert each item in the list of listings is a tuple
+            self.assertEqual(type(item), tuple)
+            # check that each tuple has a length of 6
 
-#         # check that the next row is Private room in Mission District,82,51027324,Pending,Private Room,1
+        # check that the first tuple is made up of the following:
+        # 'Loft in Mission District', 210, '1944564', '2022-004088STR', 'Entire Room', 1
 
-#         # check that the last row is Apartment in Mission District,399,28668414,Pending,Entire Room,2
+        # check that the last tuple is made up of the following:
+        # 'Guest suite in Mission District', 238, '32871760', 'STR-0004707', 'Entire Room', 1
 
 #         pass
 
-#     def test_check_policy_numbers(self):
-#         # call get_detailed_listing_database on "html_files/mission_district_search_results.html"
-#         # and save the result to a variable
-#         detailed_database = get_detailed_listing_database("html_files/mission_district_search_results.html")
-#         # call check_policy_numbers on the variable created above and save the result as a variable
-#         invalid_listings = check_policy_numbers(detailed_database)
-#         # check that the return value is a list
-#         self.assertEqual(type(invalid_listings), list)
-#         # check that there is exactly one element in the string
+    def test_write_csv(self):
+        # call get_detailed_listing_database on "html_files/mission_district_search_results.html"
+        # and save the result to a variable
+        detailed_database = get_detailed_listing_database("html_files/mission_district_search_results.html")
+        # call write csv on the variable you saved
+        write_csv(detailed_database, "test.csv")
+        # read in the csv that you wrote
+        csv_lines = []
+        with open(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'test.csv'), 'r') as f:
+            csv_reader = csv.reader(f)
+            for i in csv_reader:
+                csv_lines.append(i)
+        # check that there are 21 lines in the csv
+        self.assertEqual(len(csv_lines), 21)
+        # check that the header row is correct
 
-#         # check that the element in the list is a string
+        # check that the next row is Private room in Mission District,82,51027324,Pending,Private Room,1
 
-#         # check that the first element in the list is '16204265'
+        # check that the last row is Apartment in Mission District,399,28668414,Pending,Entire Room,2
+
 #         pass
+
+    def test_check_policy_numbers(self):
+        # call get_detailed_listing_database on "html_files/mission_district_search_results.html"
+        # and save the result to a variable
+        detailed_database = get_detailed_listing_database("html_files/mission_district_search_results.html")
+        # call check_policy_numbers on the variable created above and save the result as a variable
+        invalid_listings = check_policy_numbers(detailed_database)
+        # check that the return value is a list
+        self.assertEqual(type(invalid_listings), list)
+        # check that there is exactly one element in the string
+
+        # check that the element in the list is a string
+
+        # check that the first element in the list is '16204265'
+        pass
 
 
 if __name__ == '__main__':
