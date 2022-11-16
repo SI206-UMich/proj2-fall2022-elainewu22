@@ -5,9 +5,9 @@ import os
 import csv
 import unittest
 
-#name:
-#student ID:
-#who did we work with: Isabella Benjey, Joey Quick, Ally Chang
+#name:Elaine Wu 
+#student ID:27843574
+#who did we work with: Ally Chang
 
 def get_listings_from_search_results(html_file):
     # # step one 
